@@ -93,11 +93,13 @@ pub async fn login_post_handler(
     jar: CookieJar,
     Form(payload): Form<LoginPayload>,
 ) -> impl IntoResponse {
-    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = ?")
-        .bind(&payload.username)
-        .fetch_optional(&pool)
-        .await
-        .unwrap();
+    let user = sqlx::query_as::<_, User>(
+        "SELECT * FROM users WHERE username = ?"
+    )
+    .bind(&payload.username)
+    .fetch_optional(&pool)
+    .await
+    .unwrap();
 
     if let Some(user) = user {
         if verify(&payload.password, &user.password_hash).unwrap() {
@@ -105,12 +107,13 @@ pub async fn login_post_handler(
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_secs() as usize
-                + 86400; // 24 horas em segundos
+                + 86400;
 
             let claims = Claims {
                 sub: user.id,
                 exp,
             };
+
             let secret = jwt_secret();
 
             let token = encode(
@@ -119,7 +122,7 @@ pub async fn login_post_handler(
                 &EncodingKey::from_secret(secret.as_bytes()),
             )
             .unwrap();
-            
+
             let cookie = Cookie::build(("jwt_token", token))
                 .http_only(true)
                 .path("/")
@@ -128,28 +131,52 @@ pub async fn login_post_handler(
             return (jar.add(cookie), Redirect::to("/")).into_response();
         }
     }
-    
-    Html(LoginTemplate { error: Some("Credenciais inválidas".to_string()) }.render().unwrap()).into_response()
+
+    Html(
+        LoginTemplate {
+            error: Some("Credenciais inválidas".to_string()),
+        }
+        .render()
+        .unwrap(),
+    )
+    .into_response()
 }
 
-pub async fn home_handler(auth: AuthUser, State(pool): State<MySqlPool>) -> impl IntoResponse {
-    let investments = sqlx::query_as::<_, Investment>("SELECT * FROM investments WHERE user_id = ?")
-        .bind(auth.id)
-        .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
-    
-    let total_value: f64 = investments.iter().map(|inv| inv.amount * inv.current_price).sum();
+pub async fn home_handler(
+    auth: AuthUser,
+    State(pool): State<MySqlPool>,
+) -> impl IntoResponse {
+    let investments = sqlx::query_as::<_, Investment>(
+        "SELECT * FROM investments WHERE user_id = ?"
+    )
+    .bind(auth.id)
+    .fetch_all(&pool)
+    .await
+    .unwrap_or_default();
 
-    match (IndexTemplate { investments, total_value }).render() {
+    let total_value: f64 = investments
+        .iter()
+        .map(|inv| inv.amount * inv.current_price)
+        .sum();
+
+    match (IndexTemplate {
+        investments,
+        total_value,
+    })
+    .render()
+    {
         Ok(html) => Html(html).into_response(),
         Err(e) => {
             eprintln!("Erro ao renderizar template: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Erro ao renderizar template").into_response()
+
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Erro ao renderizar template",
+            )
+                .into_response()
         }
     }
 }
-
 pub async fn create_investment_handler(
     auth: AuthUser,
     State(pool): State<MySqlPool>,
