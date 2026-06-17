@@ -1,15 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Minha Carteira</title>
+    <title>Investment Wallet</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-gray-100 p-8">
     <div class="max-w-2xl mx-auto">
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">Minha Carteira</h1>
-            <div class="bg-blue-600 text-white px-4 py-2 rounded-lg shadow">
-                <span class="text-sm uppercase font-semibold">Total: R$ {{ "{:.2}"|format(total_value) }}</span>
+            <h1 class="text-3xl font-bold text-gray-800">Investment Wallet</h1>
+
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 text-white px-4 py-2 rounded-lg shadow">
+                    <span class="text-sm uppercase font-semibold">
+                        Total: $ {{ "{:.2}"|format(total_value) }}
+                    </span>
+                </div>
+
+                <a
+                    href="/logout"
+                    class="bg-red-600 text-white px-4 py-2 rounded-lg shadow hover:bg-red-700 transition"
+                    onclick="return confirm('Deseja realmente sair?')"
+                >
+                    Sair
+                </a>
             </div>
         </div>
 
@@ -22,8 +36,18 @@
                     <input type="number" step="any" name="amount" placeholder="Quantidade" class="border p-2 rounded" required>
                     <input type="number" step="0.01" name="current_price" placeholder="Preço Atual (R$)" class="border p-2 rounded" required>
                 </div>
+                <input type="text" name="token_address" placeholder="Endereço do Token (Solana, opcional)" class="border p-2 rounded">
                 <button type="submit" class="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">Salvar Ativo</button>
             </form>
+        </div>
+
+        <!-- Gráfico de Evolução da Carteira -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-semibold mb-4">Evolução do Valor da Carteira</h2>
+            <div id="portfolioStats" class="mb-4 text-center"></div>
+            <div class="w-full h-80">
+                <canvas id="portfolioChart"></canvas>
+            </div>
         </div>
 
         <!-- Lista de Investimentos -->
@@ -34,7 +58,7 @@
                 <li class="py-3 flex justify-between items-center">
                     <div>
                         <span class="font-medium text-gray-700">{{ inv.asset_name }}</span>
-                        <p class="text-gray-500 text-sm">{{ inv.amount }} unidades @ R$ {{ "{:.2}"|format(inv.current_price) }}</p>
+                        <p class="text-gray-500 text-sm">{{ inv.amount }} unidades @ $ {{ "{:.2}"|format(inv.current_price) }}</p>
                     </div>
                     <a href="/delete/{{ inv.id }}" class="text-red-500 hover:text-red-700 text-sm font-semibold" onclick="return confirm('Excluir este ativo?')">Remover</a>
                 </li>
@@ -44,5 +68,100 @@
             </ul>
         </div>
     </div>
+    <script>
+        // Dados do histórico da carteira
+        const history = {{ history|json|safe }};
+        
+        if (history.length >= 1) {
+            // Prepara os dados para o gráfico
+            const labels = history.map(entry => {
+                const date = new Date(entry.recorded_at);
+                return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+            });
+            
+            const values = history.map(entry => entry.total_value);
+            
+            // Verifica se a carteira valorizou ou desvalorizou
+            const isValorized = values.length > 1 ? (values[values.length-1] >= values[0]) : true;
+            const lineColor = isValorized ? '#10b981' : '#ef4444';
+            const bgColor = isValorized ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+            
+            // Calcula percentual de valorização
+            if (values.length > 1) {
+                const initialValue = values[0];
+                const currentValue = values[values.length-1];
+                const percentage = ((currentValue - initialValue) / initialValue) * 100;
+                const percentageText = percentage >= 0 ? `+${percentage.toFixed(2)}%` : `${percentage.toFixed(2)}%`;
+                const percentageClass = percentage >= 0 ? 'text-green-600' : 'text-red-600';
+                const textColor = percentage >= 0 ? 'text-green-700' : 'text-red-700';
+                document.getElementById('portfolioStats').innerHTML = `
+                    <div class="inline-block px-4 py-2 rounded-lg ${bgColor}">
+                        <span class="${textColor} font-bold text-lg">${percentageText}</span>
+                        <span class="text-gray-600 ml-2">desde o primeiro registro</span>
+                    </div>
+                `;
+            } else {
+                document.getElementById('portfolioStats').innerHTML = '<p class="text-gray-500">Aguardando mais registros para calcular a valorização</p>';
+            }
+            
+            // Cria o gráfico
+            const ctx = document.getElementById('portfolioChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Valor Total da Carteira (USD)',
+                        data: values,
+                        borderColor: lineColor,
+                        backgroundColor: bgColor,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Valor: $ ' + context.parsed.y.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$ ' + value.toFixed(2);
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxTicksLimit: 10,
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            // Se não houver registros, esconde o canvas e mostra uma mensagem
+            document.getElementById('portfolioChart').style.display = 'none';
+            const chartContainer = document.querySelector('#portfolioChart').parentElement;
+            chartContainer.innerHTML += '<p class="text-gray-500 italic text-center">Aguarde mais atualizações para ver o gráfico de evolução da sua carteira!</p>';
+        }
+    </script>
 </body>
 </html>

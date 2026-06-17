@@ -8,6 +8,7 @@ pub struct Investment {
     pub amount: f64,
     pub current_price: f64,
     pub user_id: i32,
+    pub token_address: Option<String>,
 }
 
 #[derive(Debug, FromRow)]
@@ -21,4 +22,12 @@ pub struct User {
 pub struct Claims {
     pub sub: i32, // User ID
     pub exp: usize,
+}
+
+#[derive(Debug, sqlx::FromRow, serde::Serialize)]
+pub struct PortfolioHistoryEntry {
+    pub id: i32,
+    pub user_id: i32,
+    pub total_value: f64,
+    pub recorded_at: Option<chrono::DateTime<chrono::Utc>>,
 }
