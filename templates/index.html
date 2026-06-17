@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Minha Carteira</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Minha Carteira</h1>
+            <div class="bg-blue-600 text-white px-4 py-2 rounded-lg shadow">
+                <span class="text-sm uppercase font-semibold">Total: R$ {{ "{:.2}"|format(total_value) }}</span>
+            </div>
+        </div>
+
+        <!-- Formulário de Cadastro -->
+        <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Adicionar Novo Ativo</h2>
+            <form action="/" method="POST" class="grid grid-cols-1 gap-4">
+                <input type="text" name="asset_name" placeholder="Nome do Ativo (ex: PETR4)" class="border p-2 rounded" required>
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="number" step="any" name="amount" placeholder="Quantidade" class="border p-2 rounded" required>
+                    <input type="number" step="0.01" name="current_price" placeholder="Preço Atual (R$)" class="border p-2 rounded" required>
+                </div>
+                <button type="submit" class="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">Salvar Ativo</button>
+            </form>
+        </div>
+
+        <!-- Lista de Investimentos -->
+        <div class="bg-white shadow-md rounded-lg p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Seus Ativos</h2>
+            <ul class="divide-y divide-gray-200">
+                {% for inv in investments %}
+                <li class="py-3 flex justify-between items-center">
+                    <div>
+                        <span class="font-medium text-gray-700">{{ inv.asset_name }}</span>
+                        <p class="text-gray-500 text-sm">{{ inv.amount }} unidades @ R$ {{ "{:.2}"|format(inv.current_price) }}</p>
+                    </div>
+                    <a href="/delete/{{ inv.id }}" class="text-red-500 hover:text-red-700 text-sm font-semibold" onclick="return confirm('Excluir este ativo?')">Remover</a>
+                </li>
+                {% else %}
+                <p class="text-gray-500 italic text-center">Nenhum investimento encontrado. Comece a investir!</p>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

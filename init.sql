@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS investments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    asset_name VARCHAR(255) NOT NULL,
+    amount DOUBLE NOT NULL,
+    current_price DOUBLE NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
